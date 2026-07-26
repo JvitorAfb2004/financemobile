@@ -28,17 +28,38 @@ jobs:
           echo "Workspace: $WORKSPACE"
           SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           echo "Scheme: $SCHEME"
-          xcodebuild build \
+
+          xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
-            -derivedDataPath build \
+            -archivePath build/app.xcarchive \
+            CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            DEVELOPMENT_TEAM="" \
             -destination 'generic/platform=iOS'
-          APP=$(find build -name "*.app" -type d -path "*/Release-iphoneos/*" | head -1)
-          echo "App: $APP"
+
+          echo "=== Archive structure ==="
+          find build/app.xcarchive -maxdepth 3 -type d || true
+
+          echo "=== Looking for .app ==="
+          APP=$(find build/app.xcarchive -name "*.app" -type d | head -1)
+          echo "Found app: '$APP'"
+
+          if [ -z "$APP" ]; then
+            echo "ERROR: no .app found in archive, trying derived data..."
+            APP=$(find build -name "*.app" -type d -path "*/Release-iphoneos/*" | head -1)
+            echo "DerivedData app: '$APP'"
+          fi
+
+          if [ -z "$APP" ]; then
+            echo "FATAL: could not find .app anywhere"
+            exit 1
+          fi
+
           mkdir -p Payload
           cp -r "$APP" Payload/
           zip -r ../genius-finance.ipa Payload/
