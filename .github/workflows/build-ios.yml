@@ -29,27 +29,34 @@ jobs:
           SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           echo "Scheme: $SCHEME"
 
-          xcodebuild archive \
+          BUILD_DIR="$PWD/build/output"
+          mkdir -p "$BUILD_DIR"
+
+          xcodebuild build \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
-            -archivePath build/app.xcarchive \
-            -derivedDataPath build \
+            -sdk iphoneos \
+            -derivedDataPath "$PWD/build" \
+            CONFIGURATION_BUILD_DIR="$BUILD_DIR" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            DEVELOPMENT_TEAM="" \
-            -destination 'generic/platform=iOS'
+            DEVELOPMENT_TEAM=""
 
-          APP=$(find build/app.xcarchive -name "*.app" -type d | head -1)
+          echo "=== Build output ==="
+          ls -la "$BUILD_DIR/"
+
+          APP=$(find "$BUILD_DIR" -name "*.app" -maxdepth 1 -type d | head -1)
+          echo "App: '$APP'"
 
           if [ -z "$APP" ]; then
-            echo "Not in archive, searching derived data..."
-            APP=$(find build -name "*.app" -type d -not -path "*/Previews/*" -not -path "*/xcarchive/*" | head -1)
+            echo "Searching derived data..."
+            APP=$(find "$PWD/build" -name "*.app" -type d -not -path "*/Previews/*" | head -1)
+            echo "DerivedData app: '$APP'"
           fi
 
-          echo "App: '$APP'"
           if [ -z "$APP" ]; then
             echo "FATAL: could not find .app"
             exit 1
