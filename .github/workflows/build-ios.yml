@@ -1,0 +1,51 @@
+name: Build iOS IPA (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build unsigned archive
+        run: |
+          cd ios
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
+          echo "Workspace: $WORKSPACE"
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "Scheme: $SCHEME"
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -archivePath build/app.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -destination 'generic/platform=iOS'
+
+      - name: Create unsigned IPA
+        run: |
+          ARCHIVE="ios/build/app.xcarchive"
+          mkdir -p Payload
+          cp -r "$ARCHIVE/Products/Applications"/*.app Payload/
+          zip -r genius-finance.ipa Payload/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: genius-finance-unsigned.ipa
+          path: genius-finance.ipa
