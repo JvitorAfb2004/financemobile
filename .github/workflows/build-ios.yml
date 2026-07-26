@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -20,11 +20,14 @@ jobs:
         run: npx expo prebuild --platform ios --clean
 
       - name: Build unsigned archive
+        shell: bash
         run: |
+          set -eo pipefail
           cd ios
-          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 -not -name "*.xcodeproj" | head -1)
           echo "Workspace: $WORKSPACE"
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          xcodebuild -workspace "$WORKSPACE" -list
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           echo "Scheme: $SCHEME"
           xcodebuild archive \
             -workspace "$WORKSPACE" \
@@ -35,12 +38,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             -destination 'generic/platform=iOS'
+          echo "Archive done, listing contents:"
+          ls -la build/app.xcarchive/Products/Applications/
 
       - name: Create unsigned IPA
+        shell: bash
         run: |
-          ARCHIVE="ios/build/app.xcarchive"
+          set -eo pipefail
+          APP=$(find ios/build/app.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -1)
+          echo "App: $APP"
           mkdir -p Payload
-          cp -r "$ARCHIVE/Products/Applications"/*.app Payload/
+          cp -r "$APP" Payload/
           zip -r genius-finance.ipa Payload/
 
       - uses: actions/upload-artifact@v4
