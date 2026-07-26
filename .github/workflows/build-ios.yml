@@ -19,41 +19,50 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
-      - name: Build and export unsigned IPA
+      - name: Archive and create unsigned IPA
         shell: bash
         run: |
-          set -eo pipefail
+          set -euo pipefail
           cd ios
           WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
           echo "Workspace: $WORKSPACE"
           SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           echo "Scheme: $SCHEME"
 
-          xcodebuild -workspace "$WORKSPACE" \
+          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
+          export NODE_BINARY
+
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
-            clean archive \
-            -archivePath app.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath ../build/app.xcarchive \
+            -allowProvisioningUpdates \
+            CODE_SIGN_STYLE=Automatic \
+            ONLY_ACTIVE_ARCH=NO
 
-          echo "=== Archive structure ==="
-          find app.xcarchive -maxdepth 3 -type d
+          echo "=== Archive Products/Applications ==="
+          ls -la ../build/app.xcarchive/Products/Applications/
 
-          APP=$(find app.xcarchive/Products/Applications -name "*.app" -maxdepth 1 -type d | head -1)
-          echo "App: '$APP'"
-
-          if [ -z "$APP" ]; then
-            echo "FATAL: no .app in Products/Applications"
+          APP_PATH=$(find ../build/app.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "FATAL: no .app in archive"
             exit 1
           fi
+          APP_NAME=$(basename "$APP_PATH")
+          IPA_NAME="${APP_NAME%.app}.ipa"
+          echo "App: $APP_NAME -> IPA: $IPA_NAME"
 
-          mkdir -p Payload
-          cp -r "$APP" Payload/
-          zip -r genius-finance.ipa Payload/
+          mkdir -p ../build/ipa/Payload
+          cp -r "$APP_PATH" ../build/ipa/Payload/
+          cd ../build/ipa
+          zip -r "$IPA_NAME" Payload
+
+          cp "$IPA_NAME" "../../$IPA_NAME"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: genius-finance-unsigned.ipa
-          path: ios/genius-finance.ipa
+          name: unsigned-ipa
+          path: "*.ipa"
