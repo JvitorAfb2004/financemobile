@@ -16,6 +16,12 @@ jobs:
 
       - run: npm ci
 
-      - run: npx eas-cli@latest build --platform ios --profile sidestore --local --non-interactive
+      - name: Init EAS
+        run: npx eas-cli@latest init --force --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS IPA
+        run: npx eas-cli@latest build --platform ios --profile sidestore --local --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
