@@ -23,6 +23,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          ROOT="$PWD"
           cd ios
           WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
           echo "Workspace: $WORKSPACE"
@@ -32,35 +33,33 @@ jobs:
           if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
           export NODE_BINARY
 
+          ARCHIVE="$ROOT/build/app.xcarchive"
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
-            -archivePath ../build/app.xcarchive \
+            -archivePath "$ARCHIVE" \
             -allowProvisioningUpdates \
             CODE_SIGN_STYLE=Automatic \
             ONLY_ACTIVE_ARCH=NO
 
-          echo "=== Archive Products/Applications ==="
-          ls -la ../build/app.xcarchive/Products/Applications/
+          echo "=== Archive tree ==="
+          find "$ARCHIVE" -maxdepth 3 -type d 2>/dev/null || echo "archive dir missing"
 
-          APP_PATH=$(find ../build/app.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -n 1)
-          if [ -z "$APP_PATH" ]; then
-            echo "FATAL: no .app in archive"
+          APP=$(find "$ARCHIVE/Products/Applications" -name "*.app" -maxdepth 1 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "FATAL: no .app in $ARCHIVE/Products/Applications"
             exit 1
           fi
-          APP_NAME=$(basename "$APP_PATH")
+          APP_NAME=$(basename "$APP")
           IPA_NAME="${APP_NAME%.app}.ipa"
-          echo "App: $APP_NAME -> IPA: $IPA_NAME"
 
-          mkdir -p ../build/ipa/Payload
-          cp -r "$APP_PATH" ../build/ipa/Payload/
-          cd ../build/ipa
-          zip -r "$IPA_NAME" Payload
-
-          cp "$IPA_NAME" "../../$IPA_NAME"
+          mkdir -p "$ROOT/build/ipa/Payload"
+          cp -r "$APP" "$ROOT/build/ipa/Payload/"
+          (cd "$ROOT/build/ipa" && zip -r "$IPA_NAME" Payload)
+          cp "$ROOT/build/ipa/$IPA_NAME" "$ROOT/$IPA_NAME"
 
       - uses: actions/upload-artifact@v4
         with:
