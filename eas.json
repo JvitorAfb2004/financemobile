@@ -5,10 +5,11 @@
   },
   "build": {
     "sidestore": {
-      "distribution": "internal",
       "withoutCredentials": true,
+      "credentialsSource": "local",
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "simulator": false
       }
     }
   }

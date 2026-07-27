@@ -16,12 +16,55 @@ jobs:
 
       - run: npm ci
 
-      - name: Init EAS
-        run: npx eas-cli@latest init --force --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean
 
-      - name: Build iOS IPA
-        run: npx eas-cli@latest build --platform ios --profile sidestore --local --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Archive and create unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
+          echo "Workspace: $WORKSPACE"
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "Scheme: $SCHEME"
+
+          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
+          export NODE_BINARY
+
+          ARCHIVE="/tmp/app.xcarchive"
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform/iOS' \
+            -archivePath "$ARCHIVE" \
+            -allowProvisioningUpdates \
+            CODE_SIGN_STYLE=Automatic \
+            ONLY_ACTIVE_ARCH=NO
+
+          echo "=== archive tree (depth 3) ==="
+          find "$ARCHIVE" -maxdepth 3 -type d 2>/dev/null || true
+          echo "=== searching for .app ==="
+          find "$ARCHIVE" -name "*.app" -type d 2>/dev/null || true
+
+          APP=$(find "$ARCHIVE" -name "*.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "FATAL: .app not found in archive"
+            exit 1
+          fi
+
+          APP_NAME=$(basename "$APP")
+          IPA_NAME="${APP_NAME%.app}.ipa"
+          echo "Found: $APP_NAME -> IPA: $IPA_NAME"
+
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r "$IPA_NAME" Payload/
+          cp "$IPA_NAME" "$PWD/../$IPA_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: "*.ipa"
