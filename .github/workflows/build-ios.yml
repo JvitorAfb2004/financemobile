@@ -16,52 +16,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Prebuild iOS
-        run: npx expo prebuild --platform ios --clean
-
-      - name: Archive and create unsigned IPA
-        shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="$PWD"
-          cd ios
-          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
-          echo "Workspace: $WORKSPACE"
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
-          echo "Scheme: $SCHEME"
-
-          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
-          export NODE_BINARY
-
-          ARCHIVE="$ROOT/build/app.xcarchive"
-          xcodebuild archive \
-            -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$ARCHIVE" \
-            -allowProvisioningUpdates \
-            CODE_SIGN_STYLE=Automatic \
-            ONLY_ACTIVE_ARCH=NO
-
-          echo "=== Archive tree ==="
-          find "$ARCHIVE" -maxdepth 3 -type d 2>/dev/null || echo "archive dir missing"
-
-          APP=$(find "$ARCHIVE/Products/Applications" -name "*.app" -maxdepth 1 2>/dev/null | head -1)
-          if [ -z "$APP" ]; then
-            echo "FATAL: no .app in $ARCHIVE/Products/Applications"
-            exit 1
-          fi
-          APP_NAME=$(basename "$APP")
-          IPA_NAME="${APP_NAME%.app}.ipa"
-
-          mkdir -p "$ROOT/build/ipa/Payload"
-          cp -r "$APP" "$ROOT/build/ipa/Payload/"
-          (cd "$ROOT/build/ipa" && zip -r "$IPA_NAME" Payload)
-          cp "$ROOT/build/ipa/$IPA_NAME" "$ROOT/$IPA_NAME"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-ipa
-          path: "*.ipa"
+      - run: npx eas-cli@latest build --platform ios --profile sidestore --local --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
