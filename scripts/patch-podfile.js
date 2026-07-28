@@ -57,8 +57,10 @@ const insert = [
   "    target.build_configurations.each do |config|",
   "      config.build_settings['SWIFT_VERSION'] = '5.9'",
   "      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'",
+  "      hsp = config.build_settings['HEADER_SEARCH_PATHS'] || '$(inherited)'",
+  "      config.build_settings['HEADER_SEARCH_PATHS'] = hsp + ' $(PODS_ROOT)/../build/generated/ios'",
   "      if target.name =~ /React|RNReanimated|RNSVG|ReactNativeDependencies|folly/",
-  "        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/Headers/Public $(PODS_ROOT)/Headers/Public/ReactNativeDependencies'",
+  "        config.build_settings['HEADER_SEARCH_PATHS'] = hsp + ' $(PODS_ROOT)/../build/generated/ios $(PODS_ROOT)/Headers/Public $(PODS_ROOT)/Headers/Public/ReactNativeDependencies'",
   "        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'",
   "        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'",
   "      end",
@@ -68,4 +70,4 @@ const insert = [
 
 lines.splice(closeLine, 0, ...insert);
 fs.writeFileSync(podfile, lines.join('\n'));
-console.log('[patch-podfile] Added Swift, arch, folly header search + C++20');
+console.log('[patch-podfile] Added codegen + folly search paths, Swift, C++20');
