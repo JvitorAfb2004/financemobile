@@ -73,7 +73,9 @@ jobs:
           if [ -z "$APP" ]; then
             echo "FATAL: .app not found in archive"
             echo "=== compiler errors ==="
-            grep -i " error:" "$LOG" || true
+            grep -i "error:" "$LOG" | head -30 || true
+            echo "=== last 200 lines ==="
+            tail -n 200 "$LOG" || true
             exit 1
           fi
 
