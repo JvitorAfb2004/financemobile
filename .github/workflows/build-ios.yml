@@ -19,18 +19,27 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
+      - name: Install CocoaPods
+        shell: bash
+        run: |
+          set -euo pipefail
+          export NODE_BINARY="$(command -v node)"
+          cd ios
+          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
+          npx pod-install --silent
+
       - name: Archive and create unsigned IPA
         shell: bash
         run: |
           set -euo pipefail
+          export NODE_BINARY="$(command -v node)"
           cd ios
+          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
+
           WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 | head -1)
           echo "Workspace: $WORKSPACE"
           SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           echo "Scheme: $SCHEME"
-
-          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
-          export NODE_BINARY
 
           echo "=== Podfile ==="
           cat Podfile
