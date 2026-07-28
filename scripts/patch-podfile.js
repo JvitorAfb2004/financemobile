@@ -21,23 +21,54 @@ if (!/use_frameworks!/.test(content)) {
 }
 
 if (!/config\.build_settings\['SWIFT_VERSION'\]/.test(content)) {
-  const insert = [
-    "  installer.pods_project.targets.each do |target|",
-    "    target.build_configurations.each do |config|",
-    "      config.build_settings['SWIFT_VERSION'] = '5.9'",
-    "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'",
-    "    end",
-    "  end",
-  ].join("\n");
+  const lines = content.split('\n');
+  let postInstallStart = -1;
 
-  content = content.replace(
-    /(post_install do \|installer\|)\n([\s\S]*?)(\nend\b)/,
-    function (_, header, body, closer) {
-      return header + "\n" + body + "\n" + insert + closer;
+  for (let i = 0; i < lines.length; i++) {
+    if (/post_install\s+do\s+\|installer\|/.test(lines[i])) {
+      postInstallStart = i;
+      break;
     }
-  );
-  changed = true;
-  console.log('[patch-podfile] Added SWIFT_VERSION + deployment target');
+  }
+
+  if (postInstallStart !== -1) {
+    let depth = 1;
+    let closeLine = -1;
+
+    for (let i = postInstallStart + 1; i < lines.length; i++) {
+      const line = lines[i];
+      const doMatch = line.match(/\bdo\b(?:\s*\|[^|]*\|)?/g);
+      const endMatch = line.match(/^\s*end\s*$/);
+
+      if (doMatch) depth += doMatch.length;
+      if (endMatch) depth -= 1;
+
+      if (depth === 0) {
+        closeLine = i;
+        break;
+      }
+    }
+
+    if (closeLine !== -1) {
+      const insert = [
+        "  installer.pods_project.targets.each do |target|",
+        "    target.build_configurations.each do |config|",
+        "      config.build_settings['SWIFT_VERSION'] = '5.9'",
+        "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'",
+        "    end",
+        "  end",
+      ];
+
+      lines.splice(closeLine, 0, ...insert);
+      content = lines.join('\n');
+      changed = true;
+      console.log('[patch-podfile] Added SWIFT_VERSION + deployment target');
+    } else {
+      console.log('[patch-podfile] WARNING: could not find closing end of post_install');
+    }
+  } else {
+    console.log('[patch-podfile] WARNING: post_install block not found');
+  }
 }
 
 if (changed) {
