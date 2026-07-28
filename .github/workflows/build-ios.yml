@@ -29,7 +29,7 @@ jobs:
           export NODE_BINARY="$(command -v node)"
           cd ios
           if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
-          npx pod-install --silent
+          npx pod-install --repo-update --silent
 
       - name: Archive and create unsigned IPA
         shell: bash

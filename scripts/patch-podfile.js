@@ -55,6 +55,7 @@ if (!/config\.build_settings\['SWIFT_VERSION'\]/.test(content)) {
         "    target.build_configurations.each do |config|",
         "      config.build_settings['SWIFT_VERSION'] = '5.9'",
         "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'",
+        "      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'",
         "    end",
         "  end",
       ];
