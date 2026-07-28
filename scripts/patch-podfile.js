@@ -10,8 +10,8 @@ if (!fs.existsSync(podfile)) {
 
 let content = fs.readFileSync(podfile, 'utf8');
 
-if (/config\.build_settings\['SWIFT_VERSION'\]/.test(content)) {
-  console.log('[patch-podfile] SWIFT_VERSION already set, nothing to do');
+if (/CLANG_CXX_LANGUAGE_STANDARD/.test(content)) {
+  console.log('[patch-podfile] already patched, skipping');
   process.exit(0);
 }
 
@@ -57,10 +57,15 @@ const insert = [
   "    target.build_configurations.each do |config|",
   "      config.build_settings['SWIFT_VERSION'] = '5.9'",
   "      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'",
+  "      if target.name =~ /React|RNReanimated|RNSVG|ReactNativeDependencies|folly/",
+  "        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/Headers/Public $(PODS_ROOT)/Headers/Public/ReactNativeDependencies'",
+  "        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'",
+  "        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'",
+  "      end",
   "    end",
   "  end",
 ];
 
 lines.splice(closeLine, 0, ...insert);
 fs.writeFileSync(podfile, lines.join('\n'));
-console.log('[patch-podfile] Added SWIFT_VERSION + EXCLUDED_ARCHS');
+console.log('[patch-podfile] Added Swift, arch, folly header search + C++20');
