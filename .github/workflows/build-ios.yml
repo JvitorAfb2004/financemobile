@@ -19,6 +19,9 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
+      - name: Patch Podfile
+        run: node scripts/patch-podfile.js
+
       - name: Install CocoaPods
         shell: bash
         run: |
