@@ -32,7 +32,12 @@ jobs:
           if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
           export NODE_BINARY
 
+          echo "=== Podfile ==="
+          cat Podfile
+
           ARCHIVE="/tmp/app.xcarchive"
+          LOG="$RUNNER_TEMP/xcodebuild.log"
+          set +o pipefail
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -42,7 +47,10 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            ONLY_ACTIVE_ARCH=NO
+            ONLY_ACTIVE_ARCH=NO \
+            2>&1 | tee "$LOG"
+          BUILD_EXIT=${PIPESTATUS[0]}
+          set -o pipefail
 
           echo "=== archive tree (depth 3) ==="
           find "$ARCHIVE" -maxdepth 3 -type d 2>/dev/null || true
@@ -52,6 +60,8 @@ jobs:
           APP=$(find "$ARCHIVE" -name "*.app" -type d 2>/dev/null | head -1)
           if [ -z "$APP" ]; then
             echo "FATAL: .app not found in archive"
+            echo "=== compiler errors ==="
+            grep -i " error:" "$LOG" || true
             exit 1
           fi
 
@@ -63,6 +73,12 @@ jobs:
           cp -R "$APP" Payload/
           zip -r "$IPA_NAME" Payload/
           cp "$IPA_NAME" "$PWD/../$IPA_NAME"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xcodebuild-log
+          path: ${{ runner.temp }}/xcodebuild.log
 
       - uses: actions/upload-artifact@v4
         with:
