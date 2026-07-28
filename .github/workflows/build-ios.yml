@@ -51,7 +51,7 @@ jobs:
           if [ -n "${SCHEME:-}" ]; then
             echo "Using SCHEME from environment: $SCHEME"
           else
-            SCHEME=$(echo "$SCHEMES_JSON" | python3 -c "import sys,json,os; d=json.load(sys.stdin); s=[]; s+=d.get('workspace',{}).get('schemes',[]) or []; for p in d.get('projects',[]): s+=p.get('schemes',[]) or []; w=os.environ.get('WSNAME',''); m=[x for x in s if x==w]; n=[x for x in s if 'Pods' not in x and x!=w]; print(m[0] if m else (n[0] if n else (s[0] if s else '')))")
+            SCHEME=$(echo "$SCHEMES_JSON" | python3 -c "import sys,json,os; d=json.load(sys.stdin); s=d.get('workspace',{}).get('schemes',[]) or []; w=os.environ.get('WSNAME',''); m=[x for x in s if x==w]; n=[x for x in s if 'Pods' not in x and x!=w]; print(m[0] if m else (n[0] if n else (s[0] if s else '')))")
             echo "Selected scheme: $SCHEME"
           fi
           if [ -z "$SCHEME" ]; then echo "FATAL: no scheme selected"; exit 1; fi
