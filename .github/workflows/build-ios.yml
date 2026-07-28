@@ -33,6 +33,8 @@ jobs:
 
       - name: Archive and create unsigned IPA
         shell: bash
+        env:
+          SCHEME: GeniusFinance
         run: |
           set -euo pipefail
           export NODE_BINARY="$(command -v node)"
