@@ -41,8 +41,13 @@ jobs:
 
           WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 2 | head -1)
           if [ -z "$WORKSPACE" ]; then echo "FATAL: no .xcworkspace found"; exit 1; fi
-          WSNAME=$(basename "$WORKSPACE" .xcworkspace)
-          PODS_SCHEME="Pods-$WSNAME"
+
+          # Find the actual Pods scheme (naming varies: "Pods-AppName", "Pods", etc.)
+          PODS_SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c "import sys,json; d=json.load(sys.stdin); s=d.get('workspace',{}).get('schemes',[]); pods=[x for x in s if 'Pods' in x]; print(pods[0] if pods else '')")
+          if [ -z "$PODS_SCHEME" ]; then
+            echo "No Pods scheme found (no use_frameworks?), skipping prebuild"
+            exit 0
+          fi
 
           echo "Prebuilding: $PODS_SCHEME"
           xcodebuild build \
