@@ -28,6 +28,7 @@ export default function AppLayout() {
       <Stack.Screen name="drawer/spending-limits" options={{ title: 'Limites de Gastos' }} />
       <Stack.Screen name="drawer/reports" options={{ title: 'Relatórios' }} />
       <Stack.Screen name="drawer/subscription" options={{ title: 'Assinatura' }} />
+      <Stack.Screen name="drawer/categories" options={{ title: 'Categorias' }} />
       <Stack.Screen name="drawer/settings" options={{ title: 'Configurações' }} />
       <Stack.Screen name="drawer/report-issue" options={{ title: 'Reportar Problema' }} />
     </Stack>
