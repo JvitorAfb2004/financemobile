@@ -39,7 +39,7 @@ jobs:
           cd ios
           if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
 
-          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 2 | head -1)
+          WORKSPACE=$(find . -name "*.xcworkspace" -not -name "project.xcworkspace" -maxdepth 2 | head -1)
           echo "Workspace: $WORKSPACE"
           if [ -z "$WORKSPACE" ]; then echo "FATAL: no .xcworkspace found"; exit 1; fi
 
