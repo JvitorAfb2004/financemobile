@@ -22,23 +22,20 @@ if (!/use_frameworks!/.test(content)) {
 
 if (!/config\.build_settings\['SWIFT_VERSION'\]/.test(content)) {
   const insert = [
-    "    installer.pods_project.targets.each do |target|",
-    "      target.build_configurations.each do |config|",
-    "        config.build_settings['SWIFT_VERSION'] = '5.9'",
-    "        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'",
-    "      end",
+    "  installer.pods_project.targets.each do |target|",
+    "    target.build_configurations.each do |config|",
+    "      config.build_settings['SWIFT_VERSION'] = '5.9'",
+    "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'",
     "    end",
+    "  end",
   ].join("\n");
 
-  const match = content.match(/react_native_post_install\(installer\).*?\n/s);
-  if (match) {
-    content = content.replace(
-      /(react_native_post_install\(installer\).*?\n)/s,
-      "$1" + insert + "\n"
-    );
-  } else {
-    content += "\npost_install do |installer|\n" + insert + "\nend\n";
-  }
+  content = content.replace(
+    /(post_install do \|installer\|)\n([\s\S]*?)(\nend\b)/,
+    function (_, header, body, closer) {
+      return header + "\n" + body + "\n" + insert + closer;
+    }
+  );
   changed = true;
   console.log('[patch-podfile] Added SWIFT_VERSION + deployment target');
 }
