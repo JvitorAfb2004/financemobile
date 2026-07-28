@@ -31,6 +31,29 @@ jobs:
           if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
           npx pod-install --repo-update --silent
 
+      - name: Prebuild Pods for Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          export NODE_BINARY="$(command -v node)"
+          cd ios
+          if [ -f .xcode.env.local ]; then source .xcode.env.local; elif [ -f .xcode.env ]; then source .xcode.env; fi
+
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 2 | head -1)
+          if [ -z "$WORKSPACE" ]; then echo "FATAL: no .xcworkspace found"; exit 1; fi
+          WSNAME=$(basename "$WORKSPACE" .xcworkspace)
+          PODS_SCHEME="Pods-$WSNAME"
+
+          echo "Prebuilding: $PODS_SCHEME"
+          xcodebuild build \
+            -workspace "$WORKSPACE" \
+            -scheme "$PODS_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+            ONLY_ACTIVE_ARCH=NO 2>&1 | tail -100
+
       - name: Archive and create unsigned IPA
         shell: bash
         run: |
