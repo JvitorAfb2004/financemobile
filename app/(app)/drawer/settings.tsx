@@ -1,9 +1,12 @@
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useFinance } from '../../../src/hooks/useFinance';
+import { useNotifications } from '../../../src/hooks/useNotifications';
 import { useRouter } from 'expo-router';
+import { Bell } from 'lucide-react-native';
 
 export default function Settings() {
-  const { user, signOut, activeScope, setActiveScope, accounts, pendingInvites, acceptInvite } = useFinance();
+  const { user, signOut, activeScope, setActiveScope, accounts, pendingInvites, acceptInvite, transactions } = useFinance();
+  const { updateBadge } = useNotifications();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -56,6 +59,17 @@ export default function Settings() {
         <TouchableOpacity onPress={() => router.push('/(app)/drawer/tags')}
           style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8 }}>
           <Text style={{ fontSize: 14, color: '#475569' }}>Tags</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#64748b', marginBottom: 8 }}>Notificacoes</Text>
+        <TouchableOpacity onPress={async () => {
+          updateBadge().then(() => Alert.alert('Pronto', 'Notificacoes sincronizadas')).catch(() => Alert.alert('Erro', 'Falha ao sincronizar'));
+        }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, gap: 8 }}>
+          <Bell size={16} color="#475569" />
+          <Text style={{ fontSize: 14, color: '#475569' }}>Sincronizar Notificacoes</Text>
         </TouchableOpacity>
       </View>
 

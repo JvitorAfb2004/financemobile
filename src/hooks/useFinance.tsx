@@ -11,6 +11,7 @@ import { DEFAULT_CATEGORIES } from '../lib/categories';
 import { resolveDataPath } from '../lib/pathAdapter';
 import type { FinanceCollectionName } from '../lib/pathAdapter';
 import { ensureUserOnboardingDocs } from '../lib/onboarding';
+import { useNotifications } from './useNotifications';
 import { createAccount, getUserAccounts, getAccountMembers, getAccountInvites, migrateUserToAccount, createInvite, getPendingInvites, acceptInvite as acceptInviteSvc, archiveAccount, updateAccountSettings, revokeInvite, removeMember } from '../lib/accountService';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import {
@@ -79,6 +80,7 @@ export function FinanceProvider({ children, onReady }: { children: React.ReactNo
   const [accountInvites, setAccountInvites] = useState<AccountInvite[]>([]);
   const [pendingInvites, setPendingInvites] = useState<AccountInvite[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const { scheduleForTransaction, cancelForTransaction, updateBadge } = useNotifications();
   const readyRef = useRef(false);
 
   useEffect(() => {
@@ -187,6 +189,13 @@ export function FinanceProvider({ children, onReady }: { children: React.ReactNo
     if (categories.length === 0) seedDefaultCategories();
   }, [user, categoriesLoaded, categories.length]);
 
+  // ponytail: O(n) re-schedule on every transactions change — Notification API dedup handles same txId
+  useEffect(() => {
+    const pending = transactions.filter(t => t.status === 'PENDING');
+    pending.forEach(tx => { scheduleForTransaction(tx).catch(() => {}); });
+    updateBadge().catch(() => {});
+  }, [transactions]);
+
   // ---------- CRUD Operations ----------
 
   const addTransaction = async (txData: Omit<Transaction, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, generateMultiple?: 'INSTALLMENTS' | 'FIXED', count: number = 1) => {
@@ -275,6 +284,13 @@ export function FinanceProvider({ children, onReady }: { children: React.ReactNo
         const docRef = doc(db, colPath, id); batch.delete(docRef);
       }
       await batch.commit();
+      if (tx.groupId && deleteFuture) {
+        const futureTxs = transactions.filter(t => t.groupId === tx.groupId && new Date(t.date) >= new Date(tx.date));
+        for (const ft of futureTxs) { cancelForTransaction(ft.id).catch(() => {}); }
+      } else {
+        cancelForTransaction(id).catch(() => {});
+      }
+      updateBadge().catch(() => {});
     } catch (error) {
       handleFirestoreError(error, 'delete', `${resolveDataPath(activeScope, user.uid, 'transactions')}/${id}`, user);
     }
@@ -284,7 +300,14 @@ export function FinanceProvider({ children, onReady }: { children: React.ReactNo
     if (!user) return;
     const tx = transactions.find(t => t.id === id);
     if (!tx) return;
-    await updateTransaction(id, { status: tx.status === 'PAID' ? 'PENDING' : 'PAID' });
+    const newStatus = tx.status === 'PAID' ? 'PENDING' : 'PAID';
+    await updateTransaction(id, { status: newStatus });
+    if (newStatus === 'PAID') {
+      cancelForTransaction(id).catch(() => {});
+    } else {
+      scheduleForTransaction({ ...tx, status: 'PENDING' }).catch(() => {});
+    }
+    updateBadge().catch(() => {});
   };
 
   const closeMonth = async (year: number, month: number, notes?: string) => {
