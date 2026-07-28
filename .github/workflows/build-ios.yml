@@ -38,7 +38,7 @@ jobs:
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
-            -destination 'generic/platform/iOS' \
+            -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE" \
             -allowProvisioningUpdates \
             CODE_SIGN_STYLE=Automatic \
