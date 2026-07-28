@@ -10,7 +10,7 @@ if (!fs.existsSync(podfile)) {
 
 let content = fs.readFileSync(podfile, 'utf8');
 
-if (/CLANG_CXX_LANGUAGE_STANDARD/.test(content)) {
+if (/FOLLY_HAS_COROUTINES/.test(content)) {
   console.log('[patch-podfile] already patched, skipping');
   process.exit(0);
 }
@@ -57,13 +57,12 @@ const insert = [
   "    target.build_configurations.each do |config|",
   "      config.build_settings['SWIFT_VERSION'] = '5.9'",
   "      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'",
-  "      hsp = config.build_settings['HEADER_SEARCH_PATHS']",
-  "      hsp = (hsp.is_a?(Array) ? hsp.join(' ') : hsp) || '$(inherited)'",
-  "      config.build_settings['HEADER_SEARCH_PATHS'] = hsp + ' $(PODS_ROOT)/../build/generated/ios'",
-  "      if target.name =~ /React|RNReanimated|RNSVG|ReactNativeDependencies|folly/",
-  "        config.build_settings['HEADER_SEARCH_PATHS'] = hsp + ' $(PODS_ROOT)/../build/generated/ios $(PODS_ROOT)/Headers/Public $(PODS_ROOT)/Headers/Public/ReactNativeDependencies'",
+  "      # RN 0.81+: Folly references folly/coro/Coroutine.h which doesn't exist",
+  "      if target.name.start_with?('RCT-Folly') || target.name == 'Folly'",
+  "        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']",
+  "        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_HAS_COROUTINES=0'",
+  "        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FOLLY_MOBILE=1'",
   "        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'",
-  "        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'",
   "      end",
   "    end",
   "  end",
@@ -71,4 +70,4 @@ const insert = [
 
 lines.splice(closeLine, 0, ...insert);
 fs.writeFileSync(podfile, lines.join('\n'));
-console.log('[patch-podfile] Added codegen + folly search paths, Swift, C++20');
+console.log('[patch-podfile] Added Swift 5.9, EXCLUDED_ARCHS, Folly coroutine fix');
